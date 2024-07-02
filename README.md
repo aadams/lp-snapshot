@@ -1,6 +1,8 @@
 # lp-snapshot
 
-Using [v3-polars](https://github.com/Uniswap/v3-polars), take snapshots of current in-range liquidity providers on arbitrary blocks
+Using [v3-polars](https://github.com/Uniswap/v3-polars), take snapshots of current in-range liquidity providers on arbitrary blocks.
+
+This is valuable for research, business development, or creating incentivization strategies for Uniswap v3 LPs.
 
 ## How to use
 1. Set up v3-polars according to its documentation
