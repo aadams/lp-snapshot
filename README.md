@@ -9,3 +9,8 @@ This is valuable for research, business development, or creating incentivization
 2. Place the v3-polars and lp-snapshot directories in the same folder
 3. Update `poolAddress` and `as_of` to desired pool and block
 4. Run and read json file!
+
+## Caveats
+The liquidity is attributed to the last address who initiated a transaction that touched (minted/burned) that position. This could mean a transfered position that is untouched will not get that liquidity attributed to them. Additionally, liquidity vaults that use the nft position manager may not have their liquidity correctly attributed.
+
+In the future, support could be added for this, but is out of the scope of the current script.
