@@ -86,7 +86,7 @@ if __name__ == "__main__":
         lower, upper = int(lower), int(upper)
         # we want to pull the wallet and not the nft position manager
         if owner == nfp_address:
-            nfp_in_range = (
+            nfp_events = (
                 lps_to_nfp.filter(
                     (pl.col("tick_lower") == lower) & (pl.col("tick_upper") == upper)
                 )
@@ -100,11 +100,26 @@ if __name__ == "__main__":
                     liquidity_delta=pl.col("direction")
                     * pl.col("amount").cast(pl.Float64)
                 )
-                .select(["from_address", "liquidity_delta"])
-                .group_by("from_address")
-                .sum()
-                # fp error
-                .filter(pl.col("liquidity_delta") >= fp_error_bound)
+            )
+
+            # we attribute the liquidity to the last person who touched the position
+            nfp_in_range = (
+                (
+                    nfp_events.select(["tokenid", "liquidity_delta"])
+                    .group_by("tokenid")
+                    .sum()
+                    # fp error
+                    .filter(pl.col("liquidity_delta") >= fp_error_bound)
+                )
+                .join(
+                    (
+                        nfp_events.select("block_number", "tokenid", "from_address")
+                        .group_by("tokenid", "from_address")
+                        .max()
+                    ),
+                    on="tokenid",
+                )
+                .select("from_address", "liquidity_delta")
             )
 
             # do we find missing liquidity?
@@ -116,13 +131,12 @@ if __name__ == "__main__":
                     continue
                 raise ValueError("Missing liquidity")
 
-            # unfurl to early return and avoid costly loop
+            # early return and avoid costly loop
             if nfp_in_range.shape[0] == 1:
                 wallet, size = lps_with_range.item(0, 0), lps_with_range.item(0, 1)
             else:
                 for wallet, size in nfp_in_range.iter_rows():
                     parsed_lps[wallet] = size
-        # not nfp
         else:
             parsed_lps[owner] = delta
 
