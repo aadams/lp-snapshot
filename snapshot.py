@@ -10,16 +10,15 @@ from v3 import state
 
 import os
 
-os.environ["ALLIUM_POLARSV3_QUERY_ID"] = ""
-os.environ["ALLIUM_POLARSV3_API_KEY"] = ""
-
+os.environ['ALLIUM_POLARSV3_QUERY_ID'] = ''
+os.environ['ALLIUM_POLARSV3_API_KEY'] = ''
 
 if __name__ == "__main__":
     assert os.environ["ALLIUM_POLARSV3_API_KEY"] != "", "Please provide allium keys"
 
     # data given to code
     poolAddress = "0xBDB04e915B94FbFD6e8552ff7860E59Db7d4499a"
-    as_of = 20010000
+    as_of = 20500000
 
     update = True
     nfp_address = "0xc36442b4a4522e871399cd717abdd847ab11fe88"
@@ -28,6 +27,10 @@ if __name__ == "__main__":
     # start of script
     pool = state.v3Pool(poolAddress, "ethereum", update=update, update_from="allium")
 
+    maxSupported = pool.max_supported
+    if pool.max_supported < as_of:
+        print(f"Data may not be updated by this point - pool max: {maxSupported} - calc at: {as_of}")
+    
     # pull the nft position manager data
     _ = state.v3Pool(
         poolAddress,
@@ -67,7 +70,7 @@ if __name__ == "__main__":
         .group_by("key")
         .sum()
         # filter out the empty positions
-        .filter(pl.col("liquidity_delta") != 0)
+        .filter(pl.col("liquidity_delta") >= fp_error_bound)
     )
 
     lps_to_nfp = nfp.filter(pl.col("block_number") < as_of).filter(
@@ -76,7 +79,7 @@ if __name__ == "__main__":
         & (pl.col("tick_upper") > tick)
     )
 
-    assert mb.filter(pl.col("liquidity_delta") <= 0).shape[0] == 0, "Negative LPs"
+    assert lps.filter(pl.col("liquidity_delta") <= 0).shape[0] == 0, "Negative LPs"
     # parse lps
     parsed_lps = {}
 
@@ -133,7 +136,7 @@ if __name__ == "__main__":
 
             # early return and avoid costly loop
             if nfp_in_range.shape[0] == 1:
-                wallet, size = lps_with_range.item(0, 0), lps_with_range.item(0, 1)
+                wallet, size = nfp_in_range.item(0, 0), nfp_in_range.item(0, 1)
             else:
                 for wallet, size in nfp_in_range.iter_rows():
                     parsed_lps[wallet] = size
